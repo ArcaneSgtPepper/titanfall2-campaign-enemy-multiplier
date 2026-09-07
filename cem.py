@@ -20,7 +20,9 @@ import tempfile
 import zlib
 from dataclasses import dataclass
 
-PACKAGE = Path(__file__).resolve().parent
+# Frozen installers keep their source template/tool beside the executable,
+# not in PyInstaller's temporary runtime extraction directory.
+PACKAGE = Path(sys.executable if getattr(sys, "frozen", False) else __file__).resolve().parent
 TARGET = "scripts/vscripts/sp/_sp_mapspawn.gnut"
 STOCK_SHA = "ef7011a1cae3352830540a4b7f20396ceeccaaee5cf1189d7993a1ccfcbc0a9d"
 MAPS = frozenset(("sp_beacon", "sp_beacon_spoke0", "sp_boomtown", "sp_boomtown_end",

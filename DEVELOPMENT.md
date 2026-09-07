@@ -51,3 +51,13 @@ go build -trimpath -o tf2vpk.exe ./cmd/tf2vpk
 Place the executable in this package's `tools` folder. Upstream and dependency licenses, including tf2lzham, LZHAM, Cobra, pflag, mousetrap, wazero and Go, are in `tools/THIRD_PARTY_NOTICES`.
 
 Research used the [pinned VPK implementation](https://github.com/pg9182/tf2vpk/blob/b73c54d8e4245075ea207c7e51a2a86fdb94e4ff/vpk.go), [Icepick SDK](https://github.com/Titanfall-Mods/TTF2SDK), [client script reference](https://github.com/Syampuuh/Titanfall2), and locally installed server campaign scripts. The latter establish the initialization hook, NPC APIs, navigation and spawn callbacks. Original scripts are not redistributed.
+
+## Building release packages
+
+On Windows x64 with Python 3.14, create a virtual environment, install `requirements-build.txt`, then run `python build_release.py` in that environment. The script builds both Standalone and Python ZIPs under `dist`, with per-file checksums and release-asset checksums. It selects only authored source, docs, tests, tools and notices. It never packages local game VPKs, saves, backups or research files.
+
+The standalone executable uses [PyInstaller 6.22.2](https://pyinstaller.org/en/v6.22.2/) to bundle Python. Its resources stay beside the executable; the default game directory is the parent of that folder, regardless of the working directory. Run.cmd prefers the executable when present, otherwise it runs cem.py with Python. The Python and PyInstaller license notices are included in the Standalone download.
+
+Build-tool versions are pinned in requirements-build.txt. The public gameplay template remains identical to v0.1.1.
+
+The v0.1.2 standalone was exercised with Python absent from PATH, from an unrelated working directory, in a fixture game path containing spaces. The actual CMD buttons installed 2x, verified, switched to 3x, verified, restored and verified original files across 12 fixture campaign archives. Restoration reproduced every original VPK byte. This checks installer packaging, not gameplay.

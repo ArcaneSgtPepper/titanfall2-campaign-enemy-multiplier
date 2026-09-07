@@ -4,3 +4,6 @@ build/
 research/
 dist/
 .validation/
+.build-env/
+*.spec
+CampaignEnemyMultiplier.exe

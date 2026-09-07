@@ -2,11 +2,13 @@
 
 More enemies in the singleplayer campaign. Choose **2× or 3×** regular combat enemies.
 
-**[Download v0.1.1](https://github.com/ArcaneSgtPepper/titanfall2-campaign-enemy-multiplier/releases/download/v0.1.1/CampaignEnemyMultiplier-0.1.1.zip)** · [Report a problem](https://github.com/ArcaneSgtPepper/titanfall2-campaign-enemy-multiplier/issues)
+**[Download for Windows — no Python needed](https://github.com/ArcaneSgtPepper/titanfall2-campaign-enemy-multiplier/releases/download/v0.1.2/CampaignEnemyMultiplier-0.1.2-Standalone.zip)** · [Report a problem](https://github.com/ArcaneSgtPepper/titanfall2-campaign-enemy-multiplier/issues)
 
 ## Install
 
-Requires **Titanfall 2 on Windows** and **Python 3.10 or newer**. If needed, install Python from [python.org](https://www.python.org/downloads/windows/) and enable **Add Python to PATH** if offered.
+Requires **Titanfall 2 on 64-bit Windows 10 or 11**. The recommended **Standalone** download does not require Python.
+
+Prefer the smaller original installer? [Download the Python version](https://github.com/ArcaneSgtPepper/titanfall2-campaign-enemy-multiplier/releases/download/v0.1.2/CampaignEnemyMultiplier-0.1.2-Python.zip), which requires Python 3.10 or newer. Both downloads apply the same mod; choose one.
 
 1. Close Titanfall 2.
 2. Download the ZIP above and extract it.
@@ -35,6 +37,10 @@ No Northstar or other mod loader is required. **Do not use the `-dev` launch opt
 
 Keep the **.campaign-enemy-multiplier-state** backup folder in Titanfall2 until you have restored the original game. Restore vanilla before a game update or Steam file verification.
 
+## Updating from v0.1.1
+
+Close the game and extract your chosen download into the same **CampaignEnemyMultiplier** folder, replacing matching files. Keep the backup folder. Your current preset stays installed; you do not need to reinstall it just to use the standalone installer. Keep the whole extracted folder together.
+
 ## What changes?
 
 - Adds extra **grunts, Spectres, Stalkers, Reapers and Prowlers** during combat.
@@ -46,7 +52,7 @@ Some scripted enemies and crowded areas are skipped. The multiplier is a target,
 
 ## Troubleshooting
 
-**Python is missing:** install Python 3.10+ and make sure the `python` command is available, then retry.
+**Python is missing:** choose the **Standalone** download above, or install Python 3.10+ from [python.org](https://www.python.org/downloads/windows/) and make sure the `python` command is available. If you chose Standalone, check that **CampaignEnemyMultiplier.exe** is beside the `.cmd` files.
 
 **No extra enemies:** start a fresh chapter from Mission Select and enter a normal ground fight. Extras appear during combat. Run Verify.cmd to check installation.
 
@@ -58,7 +64,7 @@ For bug reports, include the chapter, 2× or 3× setting, fresh start or checkpo
 
 ## Status and credits
 
-**v0.1.1 is an early release, confirmed working in-game by the initial tester.** All 13 installer tests pass, including switching presets, restoration and interrupted-change recovery. Both presets passed archive extraction checks against the tested installation. Full campaign progression and 3× performance have not been exhaustively tested.
+**v0.1.2 adds the standalone installer; gameplay is unchanged from v0.1.1, confirmed working in-game by the initial tester.** The standalone installer passed 2x/3x installation, verification and exact restoration on test archives with Python removed from PATH. All 13 installer tests pass, including switching presets, restoration and interrupted-change recovery. Both presets passed archive extraction checks against the tested installation. Full campaign progression and 3× performance have not been exhaustively tested.
 
 The download includes source code, tests and the required VPK utility. Original game scripts and assets are extracted locally and are not included.
 
