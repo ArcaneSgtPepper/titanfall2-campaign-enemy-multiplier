@@ -1,0 +1,212 @@
+// Campaign Enemy Multiplier 0.1.1 (experimental; requires in-game validation).
+// Appended to the installed game's sp/_sp_mapspawn.gnut by the patch builder.
+// Engine APIs are taken from the installed campaign scripts, not Northstar.
+const int CEM_MULTIPLIER = @MULTIPLIER@
+const int CEM_MAX_EXTRA_ALIVE = 96
+const int CEM_MAX_NPCS_ALIVE = 200
+const int CEM_MAX_ADDITIONS_PER_PASS = 8
+
+void function CEM_Init()
+{
+	if ( !IsSingleplayer() || GetMapName() == "sp_training" )
+		return
+
+	AddCallback_EntitiesDidLoad( CEM_Start )
+}
+
+void function CEM_Start()
+{
+	if ( "cem_running" in level )
+		return
+	level.cem_running <- true
+	printt( "[CEM] Campaign Enemy Multiplier", CEM_MULTIPLIER, "x active" )
+	thread CEM_Run()
+}
+
+void function CEM_Run()
+{
+	FlagWait( "PlayerDidSpawn" )
+	while ( true )
+	{
+		wait 0.25
+		array<entity> players = GetPlayerArray()
+		if ( players.len() != 1 || !IsAlive( players[0] ) || !IsNPCSpawningEnabled() )
+			continue
+
+		entity player = players[0]
+		if ( player.ContextAction_IsBusy() || player.Anim_IsActive() )
+			continue
+
+		array<entity> npcs = GetNPCArray()
+		int living = 0
+		int extras = 0
+		foreach ( entity npc in npcs )
+		{
+			if ( !IsAlive( npc ) )
+				continue
+			living++
+			if ( "cem_extra" in npc.s )
+				extras++
+		}
+
+		int added = 0
+		int attempted = 0
+		foreach ( entity source in npcs )
+		{
+			if ( living >= CEM_MAX_NPCS_ALIVE || extras >= CEM_MAX_EXTRA_ALIVE ||
+				added >= CEM_MAX_ADDITIONS_PER_PASS || attempted >= 12 )
+				break
+			if ( !IsAlive( source ) || "cem_extra" in source.s )
+				continue
+
+			// Source counters and extra markers live on entities and participate in
+			// the campaign's saved script state. Killed extras are never replenished.
+			if ( !( "cem_added" in source.s ) )
+			{
+				source.s.cem_added <- 0
+				source.s.cem_next_try <- 0.0
+			}
+			if ( source.s.cem_added >= CEM_MULTIPLIER - 1 || Time() < source.s.cem_next_try )
+				continue
+
+			try
+			{
+				if ( !CEM_IsEligible( source, player ) )
+					continue
+				attempted++
+				source.s.cem_next_try = Time() + 1.25
+				while ( source.s.cem_added < CEM_MULTIPLIER - 1 &&
+					living < CEM_MAX_NPCS_ALIVE && extras < CEM_MAX_EXTRA_ALIVE &&
+					added < CEM_MAX_ADDITIONS_PER_PASS )
+				{
+					vector ornull point = CEM_FindPosition( source )
+					if ( point == null )
+						break
+					expect vector( point )
+					if ( !CEM_SpawnExtra( source, point ) )
+						break
+					source.s.cem_added++
+					living++
+					extras++
+					added++
+				}
+			}
+			catch ( error )
+			{
+				// Stop retrying a failing source; leave the original encounter running.
+				if ( IsValid( source ) )
+					source.s.cem_added = CEM_MULTIPLIER - 1
+				printt( "[CEM] Skipped an NPC after script error:", error )
+			}
+		}
+	}
+}
+
+bool function CEM_IsEligible( entity npc, entity player )
+{
+	// An explicit class allowlist excludes every Titan (including bosses),
+	// named elite pilots, civilians, MRVNs, turrets, vehicles and flying drones.
+	switch ( npc.GetClassName() )
+	{
+		case "npc_soldier":
+		case "npc_spectre":
+		case "npc_stalker":
+		case "npc_super_spectre":
+		case "npc_prowler":
+			break
+		default:
+			return false
+	}
+
+	if ( npc.GetTeam() == player.GetTeam() || !npc.HasAISettings() )
+		return false
+	if ( npc.IsInvulnerable() || npc.ai.buddhaMode )
+		return false
+	if ( npc.GetNPCState() != "combat" || !npc.IsInterruptable() )
+		return false
+	if ( npc.ContextAction_IsBusy() || npc.Anim_IsActive() || IsValid( npc.GetParent() ) )
+		return false
+	if ( !npc.IsOnGround() || DistanceSqr( npc.GetOrigin(), player.GetOrigin() ) > 25000000 )
+		return false
+
+	// Require an actual fight against Cooper/BT/the Militia. This also avoids
+	// duplicating ambient fights between wildlife and IMC, or dormant enemies.
+	entity enemy = npc.GetEnemy()
+	return IsAlive( enemy ) && enemy.GetTeam() == player.GetTeam()
+}
+
+vector ornull function CEM_FindPosition( entity source )
+{
+	vector origin = source.GetOrigin()
+	vector mins = source.GetBoundingMins()
+	vector maxs = source.GetBoundingMaxs()
+	float radius = 96.0
+	if ( source.GetClassName() == "npc_super_spectre" )
+		radius = 192.0
+
+	for ( int ring = 0; ring < 3; ring++ )
+	{
+		for ( int side = 0; side < 8; side++ )
+		{
+			vector direction = AnglesToForward( <0, source.GetAngles().y + side * 45, 0> )
+			vector desired = origin + direction * (radius + ring * 64)
+			vector ornull clamped = NavMesh_ClampPointForAIWithExtents( desired, source, <48,48,64> )
+			if ( clamped == null )
+				continue
+			expect vector( clamped )
+			if ( DistanceSqr( origin, clamped ) < 4096 || DistanceSqr( origin, clamped ) > 147456 )
+				continue
+			if ( fabs( clamped.z - origin.z ) > 64 || !NavMesh_IsPosReachableForAI( source, clamped ) )
+				continue
+
+			vector point = clamped + <0,0,4>
+			// Check both the route from the original and the destination hull.
+			// Do not ignore the original for occupancy: extras must not overlap it.
+			TraceResults route = TraceHull( origin + <0,0,4>, point, mins, maxs, [ source ], TRACE_MASK_NPCSOLID, TRACE_COLLISION_GROUP_NONE )
+			if ( route.startSolid || route.fraction < 1.0 )
+				continue
+			TraceResults space = TraceHull( point, point + <0,0,1>, mins, maxs, [], TRACE_MASK_NPCSOLID, TRACE_COLLISION_GROUP_NONE )
+			if ( space.startSolid || space.fraction < 1.0 )
+				continue
+			return point
+		}
+	}
+	return null
+}
+
+bool function CEM_SpawnExtra( entity source, vector point )
+{
+	entity extra = CreateNPC( source.GetClassName(), source.GetTeam(), point, source.GetAngles() )
+	try
+	{
+		// Set this before DispatchSpawn so a new NPC can never multiply itself.
+		extra.s.cem_extra <- true
+		SetSpawnOption_AISettings( extra, source.GetAISettingsName() )
+		entity weapon = source.GetActiveWeapon()
+		if ( IsValid( weapon ) )
+			SetSpawnOption_Weapon( extra, weapon.GetWeaponClassName(), weapon.GetMods() )
+
+		// Do not copy names, mission outputs, links, spawner handles or animations.
+		// DispatchSpawn runs the stock class callbacks, including timeline setup
+		// in Effect and Cause and NoGeoCrush in The Ark.
+		DispatchSpawn( extra )
+		if ( !IsAlive( extra ) )
+			return false
+		extra.SetMaxHealth( source.GetMaxHealth() )
+		extra.SetHealth( source.GetMaxHealth() )
+		extra.SetSkin( source.GetSkin() )
+		entity enemy = source.GetEnemy()
+		if ( IsAlive( enemy ) )
+			extra.SetEnemy( enemy )
+		return true
+	}
+	catch ( error )
+	{
+		if ( IsValid( extra ) )
+			extra.Destroy()
+		throw error
+	}
+	// The retail compiler requires a terminal statement outside try/catch,
+	// even when every branch inside the block already returns or throws.
+	unreachable
+}
